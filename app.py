@@ -7,6 +7,8 @@ import joblib
 from functools import lru_cache
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
+from google.cloud import firestore
+import hashlib
 
 app = Flask(__name__)
 
@@ -228,5 +230,60 @@ def predict():
             'error': str(e)
         })
 
+db = firestore.Client.from_service_account_json('path/to/your/service-account-key.json')
+
+# Hash password function
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.json
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not name or not email or not password:
+        return jsonify({"error": "All fields are required"}), 400
+
+    # Check if the user already exists
+    users_ref = db.collection('users')
+    if users_ref.where('email', '==', email).get():
+        return jsonify({"error": "Email already exists"}), 400
+
+    # Save user to Firestore
+    users_ref.add({
+        'name': name,
+        'email': email,
+        'password': hash_password(password)  # Store hashed password
+    })
+
+    return jsonify({"message": "User registered successfully"}), 201
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+
+    # Retrieve user from Firestore
+    users_ref = db.collection('users')
+    user_query = users_ref.where('email', '==', email).get()
+
+    if not user_query:
+        return jsonify({"error": "Invalid email or password"}), 401
+
+    user = user_query[0].to_dict()
+
+    # Check password
+    if user['password'] != hash_password(password):
+        return jsonify({"error": "Invalid email or password"}), 401
+
+    return jsonify({"message": "Login successful", "name": user['name']}), 200
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port:8080)
