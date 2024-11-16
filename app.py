@@ -3,14 +3,25 @@ from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import firebase_admin
+from firebase_admin import credentials, firestore
 import joblib
 from functools import lru_cache
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
-from google.cloud import firestore
-import hashlib
 
-app = Flask(__name__)
+app = Flask(_name_)
+
+cred = credentials.Certificate('config/capstone-project-441906-e15b20ad7653.json')
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+users_collection = db.collection('users')
+
+def hash_password(password):
+    """
+    Hashes a password using SHA256.
+    """
+    return hashlib.sha256(password.encode()).hexdigest()
 
 # Load model dan data
 @lru_cache(maxsize=None)
@@ -230,60 +241,60 @@ def predict():
             'error': str(e)
         })
 
-db = firestore.Client.from_service_account_json('path/to/your/service-account-key.json')
-
-# Hash password function
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
 @app.route('/register', methods=['POST'])
 def register():
-    data = request.json
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
+    try:
+        # Get the data from the request
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+        username = data.get('username')
 
-    if not name or not email or not password:
-        return jsonify({"error": "All fields are required"}), 400
+        # Validate the inputs
+        if not email or not password or not username:
+            return jsonify({"success": False, "message": "All fields (email, password, username) are required."}), 400
+        
+        # Check if the email already exists
+        existing_user = users_collection.where('email', '==', email).get()
+        if existing_user:
+            return jsonify({"success": False, "message": "Email already registered."}), 400
 
-    # Check if the user already exists
-    users_ref = db.collection('users')
-    if users_ref.where('email', '==', email).get():
-        return jsonify({"error": "Email already exists"}), 400
+        # Add user to Firestore
+        users_collection.add({
+            "email": email,
+            "password": password,  # WARNING: Consider hashing passwords in production!
+            "username": username
+        })
 
-    # Save user to Firestore
-    users_ref.add({
-        'name': name,
-        'email': email,
-        'password': hash_password(password)  # Store hashed password
-    })
-
-    return jsonify({"message": "User registered successfully"}), 201
+        return jsonify({"success": True, "message": "User registered successfully."}), 201
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
-    email = data.get('email')
-    password = data.get('password')
+    try:
+        # Get the data from the request
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
 
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
+        # Validate the inputs
+        if not email or not password:
+            return jsonify({"success": False, "message": "Both email and password are required."}), 400
 
-    # Retrieve user from Firestore
-    users_ref = db.collection('users')
-    user_query = users_ref.where('email', '==', email).get()
+        # Check if the email exists
+        user_query = users_collection.where('email', '==', email).get()
+        if not user_query:
+            return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
-    if not user_query:
-        return jsonify({"error": "Invalid email or password"}), 401
+        # Verify password
+        user_data = user_query[0].to_dict()  # Assume email is unique and fetch the first match
+        if user_data['password'] != password:
+            return jsonify({"success": False, "message": "Invalid email or password."}), 401
 
-    user = user_query[0].to_dict()
+        return jsonify({"success": True, "message": "Login successful.", "username": user_data["username"]}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
-    # Check password
-    if user['password'] != hash_password(password):
-        return jsonify({"error": "Invalid email or password"}), 401
-
-    return jsonify({"message": "Login successful", "name": user['name']}), 200
-
-
-if __name__ == '__main__':
-    app.run(port:8080)
+if _name_ == '_main_':
+    app.run(port=8080)
