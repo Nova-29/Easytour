@@ -8,4 +8,4 @@ scikit-learn
 joblib
 faker
 Flask
-firebase_admin
+google-cloud-firestore
