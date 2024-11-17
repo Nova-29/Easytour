@@ -3,7 +3,6 @@ from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-from google.cloud import firestore
 import firebase_admin
 from firebase_admin import credentials, firestore
 import joblib
