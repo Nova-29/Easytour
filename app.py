@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+from google.cloud import firestore
 import firebase_admin
 from firebase_admin import credentials, firestore
 import joblib
@@ -12,7 +13,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 app = Flask(_name_)
 
-cred = credentials.Certificate('config/capstone-project-441906-e15b20ad7653.json')
+cred = credentials.Certificate('config/capstone-project-441906-179ceddf7d34.json')
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 users_collection = db.collection('users')
@@ -216,7 +217,8 @@ def home():
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        place_name = request.form['place_name']
+        data = request.json
+        place_name = data.get('place_name')
         model, tfidf_vectorizer, scaler, label_encoder, tourism_df = load_models()
         
         recommendations, category, category_probs = get_recommendations(
@@ -230,9 +232,12 @@ def predict():
         
         return jsonify({
             'success': True,
-            'predicted_category': category,
-            'category_probabilities': category_probs,
-            'recommendations': recommendations
+            'code': 200,
+            'data': {
+                'category_probabilities': category_probs,
+                'predicted_category': category,
+                'recommendations': recommendations
+            }  
         })
     
     except Exception as e:
@@ -297,4 +302,4 @@ def login():
         return jsonify({"success": False, "message": str(e)}), 500
 
 if _name_ == '_main_':
-    app.run(port=8080)
+    app.run(debug=True)
