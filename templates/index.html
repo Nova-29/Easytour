@@ -68,7 +68,6 @@
             const placeName = document.getElementById('place_name').value;
 
             try {
-                // Fetch predictions
                 const response = await fetch('/predict', {
                     method: 'POST',
                     headers: {
@@ -97,18 +96,18 @@
                                 </div>
                                 <div class="text-right">
                                     <p class="text-sm font-medium text-blue-600">${rec.price}</p>
-                                    <p class="text-xs text-gray-500">Score: ${rec.final_score.toFixed(3)}</p>
+                                    <p class="text-xs text-gray-500">Score: ${rec.nn_similarity_score.toFixed(3)}</p>
                                 </div>
                             </div>
                             <p class="mt-2 text-gray-700">${rec.description}</p>
                             <div class="mt-2">
                                 <p class="text-sm text-gray-600 italic">${rec.explanation}</p>
                                 <div class="mt-1 flex flex-wrap gap-2">
-                                    ${rec.category_match ? 
+                                    ${rec.category === data.predicted_category ? 
                                         '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Category Match</span>' 
                                         : ''}
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                        Similarity: ${(rec.similarity_score * 100).toFixed(1)}%
+                                        Similarity: ${(rec.nn_similarity_score * 100).toFixed(1)}%
                                     </span>
                                 </div>
                             </div>
@@ -123,7 +122,6 @@
             } catch (error) {
                 alert(`Error: ${error.message}`);
             } finally {
-                // Hide loading spinner
                 loading.classList.add('hidden');
             }
         });
